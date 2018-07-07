@@ -80,19 +80,19 @@ def to_real_panel(panel):
 	return real_panel
 
 # 7SegArmorの実配列からコマンドへの変換
-def to_armor_command(real_panel):
+def to_armor_command(real_panel, finger_cmd):
 	command = []
 	for armor in range(6):
 		for y in range(4):
-			command.append(0x01)
+			command.append(finger_cmd)
 			for x in range(8):
 				command.append(real_panel[armor][y][x])
 	return command
 
 # パネルからコマンドへの変換
-def panel_to_command(panel):
+def panel_to_command(panel, finger_cmd):
 	real_panel = to_real_panel(panel)
-	command = to_armor_command(real_panel)
+	command = to_armor_command(real_panel, finger_cmd)
 	return command
 
 import spidev
@@ -135,44 +135,25 @@ spi.mode = 0
 spi.max_speed_hz = 1000000	# 1MHz
 
 start_time = time.time()
-"""
-for y in range(8):
-	for x in range(24):
-		panel[y][x] = 0xFF
-		xfer_data = panel_to_command(panel)
-		xfer_data = map(reverse_bit_order, xfer_data)
-		
-		for i in range(6):
-			spi.writebytes(xfer_data[i*36:(i+1)*36])
-			#time.sleep(0.001)
-			
-		time.sleep(0.006)
-		
-		# 表示更新(LATCH=＿|￣|＿)
-		GPIO.output(26, GPIO.HIGH)
-		GPIO.output(26, GPIO.LOW)
-		
-		print('%d' % (x + y*24))
 
 
-for y in range(8):
-	for x in range(24):
-		panel[y][x] = 0x00
-		xfer_data = panel_to_command(panel)
-		xfer_data = map(reverse_bit_order, xfer_data)
-		
-		for i in range(6):
-			spi.writebytes(xfer_data[i*36:(i+1)*36])
-			#time.sleep(0.001)
-			
-		time.sleep(0.006)
-		
-		# 表示更新(LATCH=＿|￣|＿)
-		GPIO.output(26, GPIO.HIGH)
-		GPIO.output(26, GPIO.LOW)
-		
-		print('%d' % (x + y*24))
-"""
+# 輝度を下げる
+brightness = 255//8
+panel = [[brightness for x in range(24)] for y in range(8)]
+xfer_data = panel_to_command(panel, 0x02)
+xfer_data = map(reverse_bit_order, xfer_data)
+
+for i in range(6):
+	spi.writebytes(xfer_data[i*36:(i+1)*36])
+	time.sleep(0.001)
+	
+time.sleep(0.006)
+
+# 表示更新(LATCH=＿|￣|＿)
+GPIO.output(26, GPIO.HIGH)
+GPIO.output(26, GPIO.LOW)
+
+print('Brightness = %d' % brightness)
 
 
 num_to_pattern = [
@@ -187,18 +168,18 @@ num_to_pattern = [
 	0xfe, # 8
 	0xf6, # 9
 ]
-	
+
 while (True):
 	for ptn in num_to_pattern:
 		
 		panel = [[ptn for x in range(24)] for y in range(8)]
 		
-		xfer_data = panel_to_command(panel)
+		xfer_data = panel_to_command(panel, 0x01)
 		xfer_data = map(reverse_bit_order, xfer_data)
 		
 		for i in range(6):
 			spi.writebytes(xfer_data[i*36:(i+1)*36])
-			#time.sleep(0.010)
+			time.sleep(0.001)
 			
 		time.sleep(0.010)
 		
@@ -206,7 +187,7 @@ while (True):
 		GPIO.output(26, GPIO.HIGH)
 		GPIO.output(26, GPIO.LOW)
 		
-		time.sleep(0.0100)
+		time.sleep(0.100)
 		
 elapsed_time = time.time() - start_time
 
